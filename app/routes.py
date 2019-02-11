@@ -7,17 +7,27 @@ from forms import LoginForm, RegistrationForm, EditProfileForm
 from app.models import User
 
 
+@app.before_request
+def before_request():
+    if current_user.is_authenticated:
+        current_user.last_seen = datetime.now()
+        db.session.commit()
+
 
 @app.route('/')
 @app.route('/index')
 @login_required
 def index():
     posts = [
-        {'author': {'username': 'Zhoujie'}, 'body': 'where r u'},
-
-        {'author': {'username': 'Xiaobao'}, 'body': 'da xue lu'}
+        {
+            'author': {'username': 'Zhoujie'},
+            'body': 'where r u'
+        },
+        {
+            'author': {'username': 'Xiaobao'},
+            'body': 'da xue lu'
+        }
     ]
-
     return render_template('index.html', title='home', posts=posts)
 
 
@@ -33,7 +43,7 @@ def login():
             return redirect(url_for('login'))
         login_user(user, remember=form.remember_me.data)
         next_page = request.args.get('next')
-        if not next_page or url_parse(next_page).decode_netloc != '':
+        if not next_page or url_parse(next_page).netloc != '':
             next_page = url_for('index')
         return redirect(next_page)
     return render_template('login.html', title='sign in', form=form)
@@ -70,17 +80,11 @@ def user(username):
     ]
     return render_template('user.html', user=user, posts=posts)
 
-@app.before_request
-def befor_request():
-    if current_user.is_authenticated:
-        current_user.last_seen = datetime.now()
-        db.session.commit()
-
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
-    form = EditProfileForm()
+    form = EditProfileForm(current_user.username)
     if form.validate_on_submit():
         current_user.username = form.username.data
         current_user.about_me = form.about_me.data
@@ -90,5 +94,5 @@ def edit_profile():
     elif request.method == 'GET':
         form.username.data = current_user.username
         form.about_me.data = current_user.about_me
-    return render_template('edit_profile.html', title='Edit profile', form=form)
-
+    return render_template('edit_profile.html', title='Edit profile',
+                           form=form)
